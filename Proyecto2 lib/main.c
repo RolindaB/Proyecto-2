@@ -5,14 +5,15 @@
 // Proyecto: Brazo
 // Hardware: Arduino Nano - ATMega328p
 //***************************************************************************************************
-
+#define F_CPU 16000000UL
 
 /* ---------------------------LIBRERIAS----------------------------------------*/
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include "ADC/ADC.h"    // Incluye la biblioteca para el ADC
-#include "PWM1/PWM1.h"    // Incluye la biblioteca para el PWM1
+#include "PWM2/PWM2.h"
 #include "PWM0/PWM0.h"	 // Incluye la biblioteca para el PWM0
 #include "EPROM/EPROM.h"//Biblioteca de Eprom
 
@@ -31,38 +32,159 @@ void setUP() {
 	// Configurar el entradas
 	DDRD &= ~((1 << DDD2)|(1 << DDD7)); // PD2 es el pin del botón CAMBIO DE ESTADO, (pd7) eprom
 	PORTD |= (1 << DDD2)|(1 << DDD7); // activar pull-up
-	DDRB &= ~((1 << DDB4)|(1 << DDB3)|(1 << DDB0)); //PIN DE BOTONES PARA GUADAR EN LA EMPROM PB4, PB3, PB0
-	PORTB |= (1 << DDB4)|(1 << DDB3)|(1 << DDB0);// Habilitar pull-up
+	DDRB &= ~((1 << DDB4)|(1 << DDB2)|(1 << DDB0)); //PIN DE BOTONES PARA GUADAR EN LA EMPROM PB4, PB2, PB0
+	PORTB |= (1 << DDB4)|(1 << DDB2)|(1 << DDB0);// Habilitar pull-up
 
-	// Habilita las interrupciones por cambio de pin en el puerto C para los pines PC0 
+	// Habilita las interrupciones por cambio de pin en el puerto C para los pines PC0
 	PCICR |= (1 << PCIE2);
 	PCMSK2 |= (1 << PCINT18) ;
 
 	// Configurar los pines de los LEDs como salidas
 	DDRC |= (1 << DDC0)|(1<<DDC1)|(1<<DDC5); // C0 ,C1,C5 es el pin del primer LED
-	DDRD |= (1 << DDD4); // PD4 guardar
+	DDRB |= (1 << DDB1); // PB1 guardar
 
 	// Inicializar ADC y PWM
 	initADC();
-	setupPWM1();
-	setupPWM0();
+	RSTPWM0();
+	RSTPWM2();
+	setPWM0fastA(0, 1024);
+	setPWM0fastB(0, 1024);
+	setPWM2fastA(0, 1024);
+	setPWM2fastB(0, 1024);
 
 	// Habilitar las interrupciones globales
 	sei();
 }
-/* -----------------------------Función principal--------------------------*/
-int main(void) {
-	//desabilitar todas las interrupciones
-	cli();
-	// Inicializar hardware
-	setUP();
 
-	while (1) {
-		// Manejar la opción seleccionada (Menú)
-		manejar_opcion();
+/* -----------------------------Eprom------------------------------------*/
+void GuardarEP(){
+	
+	// Leer el estado de los botones
+	if (!(PINB & (1 << PB4))) {
+		// PB4 está presionado
+		EEPROM_write(0, adc_value_A);
+		EEPROM_write(1, adc_value_B);
+		EEPROM_write(2, adc_value_C);
+		EEPROM_write(3, adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(20);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PINB & (1 << PB2))) {
+		// PB3 está presionado
+		EEPROM_write(4, adc_value_A);
+		EEPROM_write(5, adc_value_B);
+		EEPROM_write(6, adc_value_C);
+		EEPROM_write(7, adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(20);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PIND & (1 << PD7))) {
+		// PD7 está presionado
+		EEPROM_write(8, adc_value_A);
+		EEPROM_write(9, adc_value_B);
+		EEPROM_write(10, adc_value_C);
+		EEPROM_write(11, adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(20);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PINB & (1 << PB0))) {
+		// PB0 está presionado
+		EEPROM_write(12, adc_value_A);
+		EEPROM_write(13, adc_value_B);
+		EEPROM_write(14, adc_value_C);
+		EEPROM_write(15, adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(20);
+		PORTB &= ~(1 << 1); // Apagar
 	}
 
-	return 0;
+	// Pequeño retardo
+	_delay_ms(50);
+}
+
+void leerEP(){
+	// Leer el estado de los botones
+	if (!(PINB & (1 << PB4))) { // PB4 está presionado
+		adc_value_A = EEPROM_read(0);
+		setPWMChanel0A(adc_value_A);
+		adc_value_B = EEPROM_read(1);
+		setPWMChanel0B(adc_value_B);
+		adc_value_C = EEPROM_read(2);
+		setPWMChanel2A(adc_value_C);
+		adc_value_D = EEPROM_read(3);
+		setPWMChanel2B(adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(50);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PINB & (1 << PB2))) { // PB3 está presionado
+		adc_value_A = EEPROM_read(4);
+		setPWMChanel0A(adc_value_A);
+		adc_value_B = EEPROM_read(5);
+		setPWMChanel0B(adc_value_B);
+		adc_value_C = EEPROM_read(6);
+		setPWMChanel2A(adc_value_C);
+		adc_value_D = EEPROM_read(7);
+		setPWMChanel2B(adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(50);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PIND & (1 << PD7))) { // PD7 está presionado
+		adc_value_A = EEPROM_read(8);
+		setPWMChanel0A(adc_value_A);
+		adc_value_B = EEPROM_read(9);
+		setPWMChanel0B(adc_value_B);
+		adc_value_C = EEPROM_read(10);
+		setPWMChanel2A(adc_value_C);
+		adc_value_D = EEPROM_read(11);
+		setPWMChanel2B(adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(50);
+		PORTB &= ~(1 << 1); // Apagar
+
+		} else if (!(PINB & (1 << PB0))) { // PB0 está presionado
+		adc_value_A = EEPROM_read(12);
+		setPWMChanel0A(adc_value_A);
+		adc_value_B = EEPROM_read(13);
+		setPWMChanel0B(adc_value_B);
+		adc_value_C = EEPROM_read(14);
+		setPWMChanel2A(adc_value_C);
+		adc_value_D = EEPROM_read(15);
+		setPWMChanel2B(adc_value_D);
+		PORTB |= (1 << 1);
+		_delay_ms(50);
+		PORTB &= ~(1 << 1); // Apagar
+	}
+
+	// Pequeño retardo
+	_delay_ms(50);
+}
+
+/* -----------------------------Modo manual------------------------*/
+void Manual(){
+	// Inicia una conversión ADC para el canal D (A6)
+	ADMUX = (ADMUX & 0xF8) | 0x06;
+	ADCSRA |= (1 << ADSC);
+	_delay_ms(10);
+
+	// Inicia una conversión ADC para el canal C (A4)
+	ADMUX = (ADMUX & 0xF8) | 0x04;
+	ADCSRA |= (1 << ADSC);
+	_delay_ms(10);
+
+	// Inicia una conversión ADC para el canal B (A3)
+	ADMUX = (ADMUX & 0xF8) | 0x03;
+	ADCSRA |= (1 << ADSC);
+	_delay_ms(10);
+
+	// Inicia una conversión ADC para el canal A (A2)
+	ADMUX = (ADMUX & 0xF8) | 0x02;
+	ADCSRA |= (1 << ADSC);
+	_delay_ms(10);
 }
 
 /* -------------Función para manejar la opción seleccionada----------------*/
@@ -73,133 +195,47 @@ void manejar_opcion() {
 	PORTC &= ~(1 << 5); // Apagar el tercer LED (C5)
 
 	switch (opcion_menu) {
-/* --------------------------Modo Manual ------------------------*/
+		/* --------------------------Modo Manual ------------------------*/
 		case 0:
-			// Encender el primer LED
-			PORTC |= (1 << 0); // Encender el primer LED (C0)
-			Manual(); //Habilitar la función manual
-			GuardarEP();// habilitar la funcion de guardar en la eprom
-			
-			break;
-/* -------------------------- Modo EEPROM ------------------------*/
+		// Encender el primer LED
+		PORTC |= (1 << 0); // Encender el primer LED (C0)
+		Manual(); //Habilitar la función manual
+		GuardarEP();// habilitar la funcion de guardar en la eprom
+		break;
+
+		/* -------------------------- Modo EEPROM ------------------------*/
 		case 1:
-			// Encender el segundo LED
-			PORTC |= (1 << 1); // Encender el segundo LED (C1)
-			leerEP();
-			break;
-/* -----------------------Modo Adafruit---------------------------*/
+		// Encender el segundo LED
+		PORTC |= (1 << 1); // Encender el segundo LED (C1)
+		leerEP();
+		break;
+
+		/* -----------------------Modo Adafruit---------------------------*/
 		case 2:
-			// Encender el tercer LED
-			PORTC |= (1 << 5); // Encender el tercer LED (C5)
-			
-			break;
+		// Encender el tercer LED
+		PORTC |= (1 << 5); // Encender el tercer LED (C5)
+		break;
 	}
 }
-/* -----------------------------Eprom------------------------------------*/
 
-
-void GuardarEP(){
-	 // Leer el estado de los botones
-	 if (!(PINB & (1 << PB4))) {
-		 // PB4 está presionado
-			EEPROM_write(0, adc_value_D);
-			PORTD |= (1 << 4);
-			_delay_ms(20);
-			PORTD &= ~(1 << 4); // Apagar
-
-	 } else if (!(PINB & (1 << PB3))) {
-		 // PB3 está presionado
-			EEPROM_write(1, adc_value_C);
-			PORTD |= (1 << 4);
-			_delay_ms(20);
-			PORTD &= ~(1 << 4); // Apagar	
-	 
-	 } else if (!(PINB & (1 << PB0))) {
-		 // PB0 está presionado
-			EEPROM_write(3, adc_value_A);
-			PORTD |= (1 << 4);
-			_delay_ms(20);
-			PORTD &= ~(1 << 4); // Apagar
-			
-	 } else if (!(PIND & (1 << PD7))) {
-		 // PD7 está presionado
-			EEPROM_write(2, (adc_value_B/1.7));
-			
-			PORTD |= (1 << 4);
-			_delay_ms(20);
-			PORTD &= ~(1 << 4); // Apagar
-		 
-	 }
-
-	 // Pequeño retardo para evitar rebotes
-	 _delay_ms(50);
-}
-
-void leerEP(){
-	// Leer el estado de los botones
-	if (!(PINB & (1 << PB4))) {// PB4 está presionado
-		adc_value_D = EEPROM_read(0);
-		setPWMChannelD(adc_value_D);
-		
-		} else if (!(PINB & (1 << PB3))) {// PB3 está presionado
-		adc_value_C = EEPROM_read(1);
-		setPWMChannelC(adc_value_C);
-		
-		} else if (!(PINB & (1 << PB0))) {// PB0 está presionado
-		adc_value_A = EEPROM_read(3);
-		setPWMChannelA(adc_value_A);
-	
-		} else if (!(PIND & (1 << PD7))) {// PD7 está presionado 
-		adc_value_B = EEPROM_read(2);
-		setPWMChannelB(adc_value_B);
-	}
-
-	// Pequeño retardo para evitar rebotes
-	_delay_ms(50);
-}
-/* -----------------------------Modo manual------------------------*/
-void Manual(){
-	// Inicia una conversión ADC para el canal A (A6)
-	ADMUX = (ADMUX & 0xF8) | 0x06;
-	ADCSRA |= (1 << ADSC);
-	_delay_ms(10);
-
-	// Inicia una conversión ADC para el canal B (A4)
-	ADMUX = (ADMUX & 0xF8) | 0x04;
-	ADCSRA |= (1 << ADSC);
-	_delay_ms(10);
-
-	// Inicia una conversión ADC para el canal C (A3)
-	ADMUX = (ADMUX & 0xF8) | 0x03;
-	ADCSRA |= (1 << ADSC);
-	_delay_ms(10);
-
-	// Inicia una conversión ADC para el canal D (A2)
-	ADMUX = (ADMUX & 0xF8) | 0x02;
-	ADCSRA |= (1 << ADSC);
-	_delay_ms(10);
-	
-	
-}
-	
 /* -----------------------------Interrupción del ADC------------------------*/
-
 ISR(ADC_vect) {
-	if ((ADMUX & 0x07) == 0x04) {
-		adc_value_B = ADCH;
-		setPWMChannelB(adc_value_B/1.73 );
-		} else if ((ADMUX & 0x07) == 0x03) {
-		adc_value_C = ADCH;
-		setPWMChannelC(adc_value_C );
-		} else if ((ADMUX & 0x07) == 0x02) {
-		adc_value_D = ADCH;
-		setPWMChannelD(adc_value_D);
-		} else {
-		adc_value_A = ADCH;
-		setPWMChannelA(adc_value_A );
+	if (opcion_menu == 0) { // Solo actualizar los valores en el modo manual
+		if ((ADMUX & 0x07) == 0x03) { // Asegúrate de que este es el canal correcto
+			adc_value_B = ADCH;
+			setPWMChanel0B(adc_value_B); //A3
+			} else if ((ADMUX & 0x07) == 0x06) {
+			adc_value_D = ADCH;
+			setPWMChanel2B(adc_value_D);//A6
+			} else if ((ADMUX & 0x07) == 0x02) {
+			adc_value_A = ADCH;
+			setPWMChanel0A(adc_value_A);//A2
+			} else if ((ADMUX & 0x07) == 0x04) {
+			adc_value_C = ADCH;
+			setPWMChanel2A(adc_value_C);//A4
+		}
 	}
-
-	ADCSRA |= (1 << ADIF);
+	ADCSRA |= (1 << ADSC); // Iniciar la próxima conversión
 }
 
 /* -------------Interrupción del DEL BOTON----------------*/
@@ -217,4 +253,20 @@ ISR(PCINT2_vect) {
 	
 	// Guardar el estado actual del botón para la próxima comparación
 	ultimo_estado = estado_actual;
+	PCIFR|=(1<<PCIF2);
+}
+
+/* -----------------------------Función principal--------------------------*/
+int main(void) {
+	// Deshabilitar todas las interrupciones
+	cli();
+	// Inicializar hardware
+	setUP();
+
+	while (1) {
+		// Manejar la opción seleccionada (Menú)
+		manejar_opcion();
+	}
+
+	return 0;
 }

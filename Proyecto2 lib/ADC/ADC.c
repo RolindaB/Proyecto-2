@@ -5,6 +5,7 @@
  *  Author: asrol
  */ 
 #include "ADC.h"
+#include <stdint.h>
 
 
 void initADC(void) {

@@ -13,4 +13,5 @@
 #include <avr/io.h>
 void initADC(void);
 
+
 #endif /* ADC_H_ */

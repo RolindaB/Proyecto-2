@@ -5,19 +5,22 @@
  *  Author: asrol
  */ 
 #include "EPROM.h"
+#include <stdint.h>
 //lectura de Eeprom
-unsigned char EEPROM_read(unsigned int uiAddress){
-	while(EECR & (1<<EEPE));
-	EEAR = uiAddress;
-	EEAR |=(1<<EERE);
-	return EEDR;
+
+// Lectura de EEPROM
+unsigned char EEPROM_read(unsigned int uiAddress) {
+	while (EECR & (1 << EEPE)); // Esperar a que termine la escritura anterior
+	EEAR = uiAddress; // Establecer dirección de lectura
+	EECR |= (1 << EERE); // Iniciar lectura
+	return EEDR; // Retornar datos
 }
 
-void EEPROM_write(unsigned int uiAddress, unsigned char ucData){
-	while(EECR & (1<<EEPE));
-	EEAR = uiAddress;
-	EEDR = ucData;
-	EECR |=(1<<EEMPE);
-	EECR |=(1<<EEPE);
-	
+// Escritura de EEPROM
+void EEPROM_write(unsigned int uiAddress, unsigned char ucData) {
+	while (EECR & (1 << EEPE)); // Esperar a que termine la escritura anterior
+	EEAR = uiAddress; // Establecer dirección de escritura
+	EEDR = ucData; // Establecer datos a escribir
+	EECR |= (1 << EEMPE); // Habilitar la escritura de datos
+	EECR |= (1 << EEPE); // Iniciar escritura
 }

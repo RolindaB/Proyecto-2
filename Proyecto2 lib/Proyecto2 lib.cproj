@@ -160,10 +160,17 @@
     <Compile Include="PWM1\PWM1.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="PWM2\PWM2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="PWM2\PWM2.h">
+      <SubType>compile</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="ADC" />
     <Folder Include="EPROM" />
+    <Folder Include="PWM2" />
     <Folder Include="PWM1" />
     <Folder Include="PWM0" />
   </ItemGroup>
